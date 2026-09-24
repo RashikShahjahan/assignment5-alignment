@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizerBase
 from cs336_alignment.token_utils import tokenize_prompt_and_output, get_response_log_probs
 from cs336_alignment.grpo_utils import compute_rollout_rewards, compute_group_normalized_rewards, compute_policy_gradient_loss, aggregate_loss_across_microbatch
-
+from cs336_alignment.grpo import grpo_train_step
 
 
 def run_tokenize_prompt_and_output(
@@ -323,7 +323,16 @@ def run_grpo_train_step(
                 Dict with metadata from the underlying loss call, gradient norm
                 before clipping, and any other statistics you might want to log.
     """
-    raise NotImplementedError
+    return grpo_train_step(model,
+    tokenizer,
+    optimizer,
+    gradient_accumulation_steps,
+    max_grad_norm,
+    reward_fn,
+    repeated_prompts,
+    rollout_responses,
+    repeated_ground_truths,
+    group_size)
 
 
 """
