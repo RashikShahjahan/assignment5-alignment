@@ -48,3 +48,12 @@ def compute_policy_gradient_loss(
     response_mask: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     return -1 * raw_rewards_or_advantages*policy_log_probs, {}
+
+def aggregate_loss_across_microbatch(
+    per_token_policy_gradient_loss: torch.Tensor,
+    mask: torch.Tensor,
+    loss_normalization: Literal["sequence", "constant"] = "sequence",
+    normalization_constant: int | None = None,
+) -> torch.Tensor:
+    masked_loss = per_token_policy_gradient_loss*mask
+    return torch.mean(torch.sum(masked_loss,dim=1)/torch.sum(mask,dim=1), dim=0)
