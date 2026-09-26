@@ -23,7 +23,7 @@ CS336 is intentionally implementation-heavy. Students are expected to write subs
 * Write any python or pseudocode
 * Give solutions to any problems.
 * Complete TODO sections in assignment code.
-* Edit code in the student repo except for anything related to modal
+* Edit code in the student repo except for anything related to modal or wandb
 * Run bash commands
 * Refactor large portions of student code into a finished solution.
 * Convert assignment requirements directly into working code.
