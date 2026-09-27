@@ -13,7 +13,7 @@ def tokenize_prompt_and_output(
     roles = []
     for prompt, output in zip(prompt_ids, output_ids):
         combined = torch.tensor(prompt+output,dtype=torch.long)
-        role = torch.cat([torch.zeros(len(prompt), dtype=torch.bool),torch.ones(len(prompt), dtype=torch.bool)])
+        role = torch.cat([torch.zeros(len(prompt), dtype=torch.bool),torch.ones(len(output), dtype=torch.bool)])
 
         roles.append(role)
         combined_ids.append(combined)

@@ -29,10 +29,10 @@ def grpo_train_step(
     normalization_constant: int | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor | float]]:
     out = tokenize_prompt_and_output(repeated_prompts,rollout_responses,tokenizer)
-    inputs = out["input_ids"]
-    labels = out["labels"]
-    mask = out["response_mask"]
-    loss = torch.zeros(())
+    inputs = out["input_ids"].to(device=model.device)
+    labels = out["labels"].to(device=model.device)
+    mask = out["response_mask"].to(device=model.device)
+    loss = torch.zeros((),device=model.device)
     microbatch_size = len(inputs) // gradient_accumulation_steps
     for i in range(0, len(inputs), microbatch_size):
         inputs_microbatch = inputs[i:i+microbatch_size]
@@ -42,10 +42,10 @@ def grpo_train_step(
         mask_microbatch = mask[i:i+microbatch_size]
         
         raw_rewards,_ = compute_rollout_rewards(reward_fn,rollout_responses_microbatch,repeated_ground_truths_microbatch)
-        advantages,_=compute_group_normalized_rewards(raw_rewards,group_size)
+        advantages,_=compute_group_normalized_rewards(raw_rewards.to(model.device),group_size)
         log_probs=get_response_log_probs(model,inputs_microbatch,labels_microbatch)["log_probs"]
 
-        per_token_policy_gradient_loss,_ = compute_policy_gradient_loss(advantages.unsqueeze(-1), log_probs)
+        per_token_policy_gradient_loss,_ = compute_policy_gradient_loss(advantages.unsqueeze(-1).to(model.device), log_probs.to(model.device))
         microbatch_loss = aggregate_loss_across_microbatch(per_token_policy_gradient_loss,mask_microbatch)*len(inputs_microbatch)/len(inputs)
         loss+=microbatch_loss
         microbatch_loss.backward()

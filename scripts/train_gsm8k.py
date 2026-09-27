@@ -4,7 +4,7 @@ from cs336_alignment.modal_utils import GPU, RUN_TIMEOUT_SECONDS, app, image, wa
 from cs336_alignment.vllm_utils import VLLMServer
 from cs336_alignment.checkpoint import get_model_and_tokenizer
 from cs336_alignment.drgrpo_grader import r1_zero_reward_fn
-import xopen
+from xopen import xopen
 import torch
 import json 
 
@@ -59,13 +59,19 @@ def train_gsm8k() -> None:
             model,tokenizer = get_model_and_tokenizer(MODEL_ID, 'cuda:1')
             optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.95), weight_decay=0.0)
             prompts, ground_truths = prepare_dataset(TRAIN_DATASET_PATH)
+            prompts = prompts[:n_train_examples]
+            ground_truths = ground_truths[:n_train_examples]
+
+            val_prompts, val_ground_truths = prepare_dataset(TEST_DATASET_PATH)
+
             sampling_params = {"temperature": 1.0, "max_tokens": 512, "n":8, "seed":0}
             sampling_params["stop"] = ["</answer>"]
             sampling_params["include_stop_str_in_output"] = True
             vllm_server = VLLMServer(MODEL_ID, gpu=0)
-            vllm_server.start()
             
             try:
+                vllm_server.start()
+
                 vllm_server.init_weight_sync('cuda:1')
                 for i in range(0,len(prompts), train_batch_size//group_size):
                     prompts_batch = prompts[i:i+train_batch_size//group_size]
@@ -87,10 +93,38 @@ def train_gsm8k() -> None:
                         
                     
                     loss,_= grpo_train_step(model,tokenizer,optimizer,gradient_accumulation_steps,max_grad_norm,r1_zero_reward_fn,repeated_prompts,rollout_responses_text,repeated_ground_truths,group_size)
-                    run.log({
+
+                    metrics = {
                         "train/loss": loss.item(),
                         "train/rollout_count": len(rollout_responses_text),
-                    }, step=i // (train_batch_size // group_size) + 1)
+                    }
+                    if (i//(train_batch_size // group_size) + 1)%10==0:
+                        val_prompts_batch = val_prompts[:n_val_examples]
+                        val_ground_truths_batch = val_ground_truths[:n_val_examples]
+
+
+                        vllm_server.sync_policy_weights(model)
+                        val_rollout_responses = vllm_server.generate_completions(val_prompts_batch,sampling_params, batch_size=train_batch_size)
+                        
+                        val_repeated_ground_truths = []
+                        
+                        for val_ground_truth in val_ground_truths_batch:
+                            val_repeated_ground_truths.extend([val_ground_truth]*group_size)
+                        total_reward = 0
+                        total_format_reward = 0
+                        for response, ground_truth in zip(val_rollout_responses, val_repeated_ground_truths):
+                            reward_dict = r1_zero_reward_fn(response.text, ground_truth)
+                            total_reward+=reward_dict["reward"]
+                            total_format_reward+=reward_dict["format_reward"]
+                        metrics.update({
+                            "val/total_reward": total_reward / len(val_rollout_responses),
+                            "val/format_reward": total_format_reward / len(val_rollout_responses),
+                            "val/avg_response_length": sum(len(response.token_ids) for response in val_rollout_responses) / len(val_rollout_responses),
+                        })
+
+                    run.log(metrics, step=i // (train_batch_size // group_size) + 1)
+                    if i == 50:
+                        break
             finally:
                 vllm_server.stop()
      
