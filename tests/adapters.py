@@ -202,7 +202,7 @@ def run_compute_policy_gradient_loss(
                 Statistics from the underlying loss call, such as
                 clip-fraction components.
     """
-    return compute_policy_gradient_loss(raw_rewards_or_advantages,policy_log_probs,importance_reweighting_method,old_log_probs,response_mask=response_mask)
+    return compute_policy_gradient_loss(raw_rewards_or_advantages,policy_log_probs,importance_reweighting_method,old_log_probs,response_mask=response_mask,cliprange=cliprange)
 
 
 def run_aggregate_loss_across_microbatch(
@@ -332,7 +332,7 @@ def run_grpo_train_step(
     repeated_prompts,
     rollout_responses,
     repeated_ground_truths,
-    group_size,baseline=baseline,advantage_eps=advantage_eps,advantage_normalizer=advantage_normalizer,loss_normalization=loss_normalization,normalization_constant=normalization_constant)
+    group_size,baseline=baseline,advantage_eps=advantage_eps,advantage_normalizer=advantage_normalizer,loss_normalization=loss_normalization,normalization_constant=normalization_constant,importance_reweighting_method=importance_reweighting_method,old_log_probs=old_log_probs,cliprange=cliprange)
 
 
 """

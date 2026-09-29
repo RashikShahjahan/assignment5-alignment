@@ -64,7 +64,14 @@ def compute_policy_gradient_loss(
     cliprange: float | None = None,
     response_mask: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-    return -1 * raw_rewards_or_advantages*policy_log_probs, {}
+
+    if importance_reweighting_method == "none":
+        return -1 * raw_rewards_or_advantages*policy_log_probs, {}
+    if importance_reweighting_method == "noclip":
+        return -1 * raw_rewards_or_advantages*torch.exp(policy_log_probs-old_log_probs), {}
+    if importance_reweighting_method == "grpo":
+        return -1 *torch.minimum( raw_rewards_or_advantages*torch.exp(policy_log_probs-old_log_probs), raw_rewards_or_advantages*torch.clamp(torch.exp(policy_log_probs-old_log_probs),max=1+cliprange,min=1-cliprange)) , {}
+
 
 def aggregate_loss_across_microbatch(
     per_token_policy_gradient_loss: torch.Tensor,
