@@ -71,6 +71,10 @@ def aggregate_loss_across_microbatch(
     normalization_constant: int | None = None,
 ) -> torch.Tensor:
     masked_loss = per_token_policy_gradient_loss*mask
-    return torch.mean(torch.sum(masked_loss,dim=1)/torch.sum(mask,dim=1), dim=0)
+
+    if loss_normalization == "sequence":
+        return torch.mean(torch.sum(masked_loss,dim=1)/torch.sum(mask,dim=1), dim=0)
+    if loss_normalization ==  "constant":
+        return torch.sum(torch.sum(masked_loss,dim=1), dim=0)/normalization_constant
 
 
