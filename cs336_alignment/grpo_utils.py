@@ -34,18 +34,20 @@ def compute_group_normalized_rewards(
     for i in range(raw_rewards.numel()//group_size):
         group_rewards = raw_rewards[i*group_size:(i+1)*group_size]
         if baseline == "mean":
-            mean_reward = torch.mean(group_rewards)
+            baseline_reward = torch.mean(group_rewards)
         else:
-            mean_reward = 0
+            baseline_reward = 0
 
         if advantage_normalizer == "std":
-            std_reward = torch.std(group_rewards)
+            advnorm_reward = torch.std(group_rewards)
+        elif advantage_normalizer == "mean":
+            advnorm_reward = torch.mean(group_rewards)
         else:
-            std_reward = 0
+            advnorm_reward = 0
             advantage_eps = 1
 
 
-        norm_rewards[i*group_size:(i+1)*group_size] = (group_rewards-mean_reward)/(std_reward+advantage_eps)
+        norm_rewards[i*group_size:(i+1)*group_size] = (group_rewards-baseline_reward)/(advnorm_reward+advantage_eps)
             
    
 
