@@ -71,8 +71,30 @@ def compute_policy_gradient_loss(
         return -1 * raw_rewards_or_advantages*torch.exp(policy_log_probs-old_log_probs), {}
     if importance_reweighting_method == "grpo":
         return -1 *torch.minimum( raw_rewards_or_advantages*torch.exp(policy_log_probs-old_log_probs), raw_rewards_or_advantages*torch.clamp(torch.exp(policy_log_probs-old_log_probs),max=1+cliprange,min=1-cliprange)) , {}
+    if importance_reweighting_method == "gspo":
+        token_log_ratio = policy_log_probs - old_log_probs.detach()
+        response_lengths = response_mask.sum(dim=1, keepdim=True)
 
+        sequence_log_ratio = (
+            token_log_ratio * response_mask
+        ).sum(dim=1, keepdim=True) / response_lengths
 
+        sequence_ratio = torch.exp(sequence_log_ratio)
+        clipped_ratio = torch.clamp(
+            sequence_ratio,
+            1.0 - cliprange,
+            1.0 + cliprange,
+        )
+
+        advantages = raw_rewards_or_advantages.reshape(-1, 1)
+        sequence_loss = -torch.minimum(
+            advantages * sequence_ratio,
+            advantages * clipped_ratio,
+        )
+
+        per_token_loss = sequence_loss.expand_as(policy_log_probs)
+
+        return per_token_loss, {}
 def aggregate_loss_across_microbatch(
     per_token_policy_gradient_loss: torch.Tensor,
     mask: torch.Tensor,
